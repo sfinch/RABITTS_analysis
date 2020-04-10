@@ -19,10 +19,8 @@ fi
 for (( i=$a; i<=$b; i++ ))
 do
     echo "Run number" $i
-    #./process_rabbit $i
     #root -l -q "plot_nmon.C($i)"
-    root -l -q "run_info.C($i)"
-    #root -l -q "analysis_4s8s.C($i)"
+    root -l -q "analysis_4s8s.C($i)"
     #root -l -q "analysis_3s9s.C($i)"
     #root -l -q "analysis_10s20s.C($i)"
     #root -l -q "analysis_20s40s.C($i)"

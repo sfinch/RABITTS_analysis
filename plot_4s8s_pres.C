@@ -97,8 +97,8 @@ void plot_4s8s_pres(int run_num, int run_num2 = 0){
 
     hs->Draw();
     hs->SetTitle("");
-    hs->GetXaxis()->SetTitle("E [keV]");
-    hs->GetYaxis()->SetTitle("Counts/(keV s)");
+    hs->GetXaxis()->SetTitle("E_{#gamma} [keV]");
+    hs->GetYaxis()->SetTitle("Counts/(0.5 keV s)");
     hs->GetXaxis()->SetTitleSize(0.06);
     hs->GetYaxis()->SetTitleSize(0.06);
 
@@ -106,7 +106,7 @@ void plot_4s8s_pres(int run_num, int run_num2 = 0){
     hs->GetXaxis()->SetRangeUser(430, 510);
     hs->GetXaxis()->SetRangeUser(760, 860);
     hs->GetXaxis()->SetRangeUser(1062, 1140);
-    hs->SetMaximum(1400);
+    hs->SetMaximum(800);
 
     
     hs->Draw("pfc nostack");

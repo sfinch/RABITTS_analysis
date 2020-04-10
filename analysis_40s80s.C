@@ -12,19 +12,18 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-void analysis_4s8s(int run_num){
+void analysis_40s80s(int run_num){
 
     //Variables
     const int num_det = 4;
 
-    //const int num_win = 4;
-    const int num_win = 10;
+    const int num_win = 20;
 
-    TH1F *hCycle = new TH1F("hCycle", "hCycle", 3000, -10, 20);
-    TH1F *hIrr   = new TH1F("hIrr", "hIrr", 40000, 0, 4000);
-    TH1F *hCount = new TH1F("hCount", "hCount", 40000, 0, 4000);
+    TH1F *hCycle = new TH1F("hCycle", "hCycle", 15000, -10, 140);
+    TH1F *hIrr   = new TH1F("hIrr", "hIrr", 30000, 0, 3000);
+    TH1F *hCount = new TH1F("hCount", "hCount", 30000, 0, 3000);
     TH1F *hEnCount[num_det];
-    TH1F *hEnWin[num_win][num_det]; //[window 1-3][det 1, 2, summed]
+    TH1F *hEnWin[num_win][num_det]; //[window 1-3][det]
 
     for (int i=0; i<num_win; i++){
         for (int j=0; j<num_det; j++){
@@ -37,15 +36,13 @@ void analysis_4s8s(int run_num){
     }
 
     //cuts
-    double time_irr[2] = {0.0, 4.0};
-    double time_count[2] = {5.1, 13.1};
+    double time_irr[2] = {0.0, 40.0};
+    double time_count[2] = {41.10, 121.10};
 
     double time_win[num_win][2];
     for (int i=0; i<num_win; i++){
-        //time_win[i][0] = i+5.1;
-        //time_win[i][1] = (i+1)+5.1;
-        time_win[i][0] = .25*i+5.1;
-        time_win[i][1] = (.25*(i+1))+5.1;
+        time_win[i][0] = 4*i+41.10;
+        time_win[i][1] = 4*(i+1)+41.10;
     }
 
     //in file
@@ -88,10 +85,11 @@ void analysis_4s8s(int run_num){
                     for (int window=0; window<num_win; window++){
                         if ((rabbit.cycle_time>time_win[window][0]) 
                          && (rabbit.cycle_time<time_win[window][1])){
-                                hEnWin[window][det]->Fill(rabbit.En[det]);
+                            hEnWin[window][det]->Fill(rabbit.En[det]);
                         }
                     }//end time windows
                 }
+
             }
 
         }//end counting time

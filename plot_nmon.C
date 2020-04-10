@@ -105,7 +105,7 @@ void plot_nmon(int run_num){
 
 
     //save to file
-    //cCycle->SaveAs(Form("time_spec/%i.png", run_num));
-    //cCycle->SaveAs(Form("time_spec/%i.C", run_num));
+    cCycle->SaveAs(Form("time_spec/run%i.png", run_num));
+    cCycle->SaveAs(Form("time_spec/run%i.C", run_num));
     
 }

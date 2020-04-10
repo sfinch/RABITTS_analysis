@@ -16,13 +16,6 @@ using std::endl;
 using std::ifstream;
 using std::vector;
 
-struct calibration{     //struct storing calibration data for both dets
-    Float_t m[2];
-    Float_t b[2];
-};
-    
-calibration read_in_cal(int run_num); // function to read in calibration from file
-
 int main(int argc, char *argv[]){
 
     if (argc<2)
@@ -34,8 +27,6 @@ int main(int argc, char *argv[]){
     int run_num = atoi(argv[1]);
 
     //Variables
-    const int num_det = 4;
-    int det_chn[num_det] = {0, 1, 2, 3};
     const int rabbit_chn = 12;
 
     bool opt_verbose = 0;
@@ -43,8 +34,8 @@ int main(int argc, char *argv[]){
     //cycle time variables
     bool source_run = 1;
     double min_time = 0.2;  //filter for duplicate in sec
-    double max_var = 1.1;   //filter for missed signals
-    double min_var = 0.9;   //filter for extra signals
+    double max_var = 1.3;   //filter for missed signals
+    double min_var = 0.7;   //filter for extra signals
     int pos = 0;            //-1 = counting, 0 not def, 1 = irradiation
 
     double last_move = 0;
@@ -66,31 +57,13 @@ int main(int argc, char *argv[]){
 
     //in file
     MDPP16_SCP rabbit(run_num);
-    //check for any additional calibration corrections
-    calibration cal = read_in_cal(run_num);
 
     //output tree variables
-    Float_t cycle_time = 0;
-    Float_t En[num_det];
+    double cycle_time = 0;
     TRandom3 r;
 
-    //out file
-    TFile *fOut = new TFile(Form("data_processed/RABITTS10_%i.root", run_num), "RECREATE");
-    TTree *tProcessed = new TTree("processed", "Processed rabbit data");
-
-    tProcessed->Branch(Form("En[%i]", num_det), &En, Form("En[%i]/F", num_det));
-    tProcessed->Branch("cycle_time", &cycle_time, "cycle_time/F");
-
     //Histrograms
-    TH1F *hIrrTime = new TH1F("hIrrTime", "hIrrTime", 100*100, 0, 100);
-    TH1F *hCountTime = new TH1F("hCountTime", "hCountTime", 100*100, 0, 100);
-    TH1F *hCycleTime = new TH1F("hCycleTime", "hCycleTime", 10*110, -10, 100);
-
-    TH1F *hEn[num_det];
-
-    for (int det=0; det<num_det; det++){
-        hEn[det] = new TH1F(Form("hEn%i", det), Form("hEn%i", det), 10*3000, 0, 3000);
-    }
+    TH1F *hCycleTime = new TH1F("hCycleTime", "hCycleTime", 10000, 14, 15);
 
     //check if Rabbit used during run
     TH1F *hRabbit = (TH1F*)rabbit.file->Get(Form("histos_SCP/hADC%i", rabbit_chn));
@@ -165,7 +138,6 @@ int main(int argc, char *argv[]){
                                 count_start.push_back(rabbit.seconds);
                                 last_move = rabbit.seconds;
 
-                                hIrrTime->Fill(last_irr_length);
                                 num_irr++;
                             }
                         }
@@ -176,7 +148,6 @@ int main(int argc, char *argv[]){
                                 irr_start.push_back(rabbit.seconds);
                                 last_move = rabbit.seconds;
 
-                                hCountTime->Fill(last_count_length);
                                 num_count++;
                             }
                         }
@@ -285,141 +256,42 @@ int main(int argc, char *argv[]){
     }//end !source run
     cout << endl;
 
-    //loop over all events and write output tree
-    for (Long64_t jentry=0; jentry<nentries; jentry++) {
-        nb = rabbit.GetEntry(jentry);   nbytes += nb;
-        if (jentry%100000==0){
-            if (!opt_verbose){
-                cout << '\r' << "Processing event " << jentry;
-            }
-        }
-
-        cycle_time = 0;
-
-        if (!source_run){
-            if (jentry<start_event){
-                //cycle time should be negative
-                cycle_time = rabbit.seconds - start_offset;
-            }
-            else{
-                //for (int i=0; i<irr_start.size(); i++){
-                for (auto & cycle_start : irr_start){
-                    if (rabbit.seconds > cycle_start){
-                        cycle_time = rabbit.seconds - cycle_start;
-                    }
-                }
-            }
-        }
-
-        //energy calibrate detectors
-        for (int det=0; det<num_det; det++){ //loop over detectors
-            En[det] = 0;
-            if ((rabbit.ADC[det_chn[det]]>10)&&(!(rabbit.overflow[det_chn[det]]))){
-                //Calibrate
-                En[det] = (rabbit.ADC[det_chn[det]]+r.Rndm()-0.5)*( (*rabbit.m) )[det_chn[det]] + ( (*rabbit.b) )[det_chn[det]];
-                En[det_chn[det]] = En[det_chn[det]]*cal.m[det_chn[det]] + cal.b[det_chn[det]];
-                //fill histos
-                hEn[det]->Fill(En[det]);
-                hCycleTime->Fill(cycle_time);
-            }
-        }
-
-        //fill tree
-        tProcessed->Fill();
-    }
     cout << endl;
-
     cout << nentries << " events processed" << endl;
     cout << "Counting cycles:           " << num_count << endl;
     cout << "Irradiation cycles:        " << num_irr << endl;
     cout << "Counting cycles missed:    " << num_missed_count << endl;
     cout << "Irradiation cycles missed: " << num_missed_irr  << endl;
-    
-    //write data to file
-    fOut->cd();
-    tProcessed->Write();
 
-    fOut->mkdir("histos");
-    fOut->cd("histos");
-    hIrrTime->Write();
-    hCountTime->Write();
-    hCycleTime->Write();
-    for (int det=0; det<num_det; det++){
-        hEn[det]->Write();
+    for (int i=1; i<irr_start.size(); i++){
+        double diff = irr_start.at(i) - irr_start.at(i-1);
+        //cout << irr_start.at(i) << endl;
+        //cout << diff << endl;
+        hCycleTime->Fill(diff);
     }
 
-    fOut->Close();
+    gROOT->SetStyle("Plain");
+    gStyle->SetOptStat(0);
+    TCanvas *c1 = new TCanvas("c1", "c1", 800, 500);
+    hCycleTime->SetTitle("");
+    hCycleTime->GetYaxis()->SetTitle("Number of cycles");
+    hCycleTime->GetXaxis()->SetTitle("Cycle length [s]");
+    hCycleTime->GetXaxis()->SetRangeUser(14.235, 14.238);
+    hCycleTime->GetXaxis()->SetTitleSize(0.06);
+    hCycleTime->GetYaxis()->SetTitleSize(0.06);
+    hCycleTime->GetXaxis()->SetLabelSize(0.05);
+    hCycleTime->GetYaxis()->SetLabelSize(0.05);
+    hCycleTime->SetLineWidth(2);
+    gPad->SetLogy();
+    gPad->SetLeftMargin(0.15);
+    gPad->SetBottomMargin(0.15);
+    gPad->SetRightMargin(0.05);
+    gPad->SetTopMargin(0.05);
+    hCycleTime->Draw();
+    c1->SaveAs("c1.C");
+    c1->SaveAs("figures/cycle_time.png");
+
+
     
-}
-
-// Reads in the calibration file and finds the calibration for the given run
-calibration read_in_cal(int run_num){
-
-    //variables to read in from file
-    Float_t m_file[2], b_file[2];
-    int run, run2;
-    
-    //calibration data
-    ifstream infile;
-    infile.open("datafiles/det_cal.dat");
-
-    //return values
-    calibration cal;
-    for (int i = 0; i<2; i++){
-        cal.m[i] = 1.;
-        cal.b[i] = 0;
-    }
-
-    //read in data from file
-    do{
-        infile>>run;
-        if (run<0 || run>10000){
-            break;
-        }
-        for (int j=0; j<2; j++){
-            infile>>m_file[j];
-        }
-        infile>>run2;
-        if ((run != run2) && (run2 != 0)){
-            cout << "ERROR IN DATA FILE! Entry:  " << run << endl;
-        }
-        for (int j=0; j<2; j++){
-            infile>>b_file[j];
-        }
-        if (run == run_num){
-            break;
-        }
-    }while(!infile.eof());
-    infile.close();
-    
-    //There exists calibration points for the given run
-    if (run == run_num){
-        //print calibration values
-        cout << "Found run " << run << ", using calibration:" << endl;
-        cout << "m:  ";
-        for (int i = 0; i<2; i++){
-            cout << m_file[i] << "  ";
-        }
-        cout << endl << "b:  ";
-        for (int i = 0; i<2; i++){
-            cout << b_file[i] << "  ";
-        }
-        cout << endl;
-        //check with user
-        //cout << "Is this OK? (y or n)  ";
-        char ans = 'y';
-        //cin >> ans;
-        if  (ans == 'y'){
-            for (int i = 0; i<2; i++){
-                cal.m[i] = m_file[i];
-                cal.b[i] = b_file[i];
-            }
-        }
-    }
-    else{
-        cout << "No additional calibration found in datafiles/det_cal.dat. Using only MVME calibration." 
-             << endl;
-    }
-    return cal; //return calibration
 }
 
